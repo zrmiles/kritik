@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kritik
+      POSTGRES_USER: kritik
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kritik-local}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kritik -d kritik"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-docker-local-secret-key-change-me-in-production}
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:-false}
+      POSTGRES_DB: kritik
+      POSTGRES_USER: kritik
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kritik-local}
+      POSTGRES_HOST: db
+      RAWG_API_KEY: ${RAWG_API_KEY:-}
+      IMPORT_RAWG_PAGES: ${IMPORT_RAWG_PAGES:-0}
+      SEED_DEMO: ${SEED_DEMO:-1}
+
+volumes:
+  pgdata:

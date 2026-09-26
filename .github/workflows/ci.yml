@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kritik
+          POSTGRES_USER: kritik
+          POSTGRES_PASSWORD: kritik
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kritik -d kritik"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-secret-key-that-is-long-enough-for-jwt
+      POSTGRES_DB: kritik
+      POSTGRES_USER: kritik
+      POSTGRES_PASSWORD: kritik
+      POSTGRES_HOST: localhost
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Линтер
+        run: ruff check .
+      - name: Проверка конфигурации и миграций
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Тесты (PostgreSQL)
+        run: python manage.py test --verbosity 2
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка образа
+        run: docker build -t kritik:ci .
