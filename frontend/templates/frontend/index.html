@@ -1,0 +1,56 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Критик — каталог видеоигр с оценками и рецензиями игроков.">
+  <title>Критик — оценки игр от игроков</title>
+  <link rel="icon" href="{% static 'frontend/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans+Extra+Condensed:wght@500;700;800&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=PT+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="{% static 'frontend/css/kritik.css' %}">
+  <script type="module" src="{% static 'frontend/js/app.js' %}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">К содержимому</a>
+
+  <header class="masthead">
+    <div class="wrap">
+      <div class="masthead__strip mono">
+        <span id="issue-line">Оценки видеоигр от игроков</span>
+        <span class="masthead__account" id="account"></span>
+      </div>
+      <div class="masthead__main">
+        <a class="wordmark" href="#/" aria-label="Критик — на главную">Критик<span class="wordmark__dot" aria-hidden="true"></span></a>
+        <div class="masthead__aside">
+          <p class="masthead__motto">Игры глазами тех, кто в них играет. Оценки выставляют только пользователи сервиса — без пресс-релизов и платных обзоров.</p>
+          <dl class="masthead__stats mono" id="stats"></dl>
+        </div>
+      </div>
+      <nav class="mainnav" aria-label="Разделы">
+        <a href="#/" data-nav="catalog">Каталог</a>
+        <a href="#/saved" data-nav="saved">Мой список <span class="mainnav__count" id="saved-count"></span></a>
+        <a href="#/reviews" data-nav="reviews">Мои рецензии</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap" tabindex="-1">
+    <div id="view" aria-live="polite"></div>
+  </main>
+
+  <footer class="colophon">
+    <div class="wrap colophon__grid">
+      <div class="colophon__mark">Критик<span class="wordmark__dot" aria-hidden="true"></span></div>
+      <p>Оценка сообщества — среднее арифметическое оценок пользователей «Критика» по шкале от&nbsp;1 до&nbsp;10. Один игрок — одна рецензия на игру.</p>
+      <p>Сведения об играх: <a href="https://rawg.io" target="_blank" rel="noopener">RAWG.io</a> и редакционный каталог. Обложки принадлежат правообладателям.</p>
+      <p class="mono">Учебный проект<br>Проектный практикум · 2026</p>
+    </div>
+  </footer>
+
+  <dialog id="auth-dialog" class="dialog" aria-labelledby="auth-title"></dialog>
+  <div id="toast" class="toast mono" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
