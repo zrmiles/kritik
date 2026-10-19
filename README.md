@@ -50,7 +50,7 @@
 ### Запуск в Docker (PostgreSQL + gunicorn), 3 команды
 
 ```bash
-git clone <URL репозитория> kritik
+git clone https://github.com/zrmiles/kritik.git kritik
 cd kritik
 docker compose up --build
 ```
@@ -60,7 +60,7 @@ docker compose up --build
 ### Запуск без Docker (SQLite), 5 команд
 
 ```bash
-git clone <URL репозитория> kritik && cd kritik
+git clone https://github.com/zrmiles/kritik.git kritik && cd kritik
 python3 -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 cd src && python manage.py migrate && python manage.py seed_demo
