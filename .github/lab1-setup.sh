@@ -144,8 +144,6 @@ EOF
 - Задача 5: исследование выполнимости и план на семестр.
 
 Refs #$product
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
     echo
