@@ -35,39 +35,58 @@
 | Инфраструктура | Docker, docker compose, gunicorn, WhiteNoise |
 | Качество | Django TestCase (33 теста), Ruff, GitHub Actions |
 
-## Быстрый старт (локально, SQLite)
+## Запуск
 
-Нужен Python 3.12+.
+### Предварительные требования
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-cp .env.example .env                  # при необходимости поменяйте значения
-python manage.py migrate
-python manage.py seed_demo            # 24 игры и демо-рецензии
-python manage.py createsuperuser      # для входа в /admin/
-python manage.py runserver
-```
+| Инструмент | Версия | Для чего |
+| --- | --- | --- |
+| Git | любая | клонирование |
+| Docker Engine / Docker Desktop с docker compose v2 | 24+ (проверено на 28.0.4) | основной способ запуска. На macOS и Windows Docker Desktop должен быть запущен |
+| Python | 3.13.3 (`.python-version`), подойдёт 3.12+ | только для запуска без Docker и для smoke-теста |
 
-Откройте <http://127.0.0.1:8000/>. Админка: <http://127.0.0.1:8000/admin/>.
+Ключ RAWG не нужен: без него загружается демо-каталог из 24 игр.
 
-Чтобы работать с PostgreSQL вместо SQLite, заполните в `.env` переменные `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`.
-
-## Запуск в Docker (PostgreSQL + gunicorn)
+### Запуск в Docker (PostgreSQL + gunicorn), 3 команды
 
 ```bash
+git clone https://github.com/zrmiles/kritik.git kritik
+cd kritik
 docker compose up --build
 ```
 
-Приложение будет доступно на <http://localhost:8000/>. При старте контейнер применяет миграции и загружает демо-каталог. Если задать `RAWG_API_KEY` и `IMPORT_RAWG_PAGES`, он дополнительно импортирует игры из RAWG:
+При старте контейнер применяет миграции и загружает демо-каталог. Приложение открывается на <http://localhost:8000/>. Если порт 8000 занят, запустите `WEB_PORT=8080 docker compose up --build`. Для входа в админку создайте суперпользователя: `docker compose exec web python manage.py createsuperuser`.
+
+### Запуск без Docker (SQLite), 5 команд
 
 ```bash
-RAWG_API_KEY=ваш_ключ IMPORT_RAWG_PAGES=3 docker compose up --build
-docker compose exec web python manage.py createsuperuser
+git clone https://github.com/zrmiles/kritik.git kritik && cd kritik
+python3 -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cd src && python manage.py migrate && python manage.py seed_demo
+python manage.py runserver
 ```
 
-Для сервера с доменом задайте `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, свой `DJANGO_SECRET_KEY`, а при HTTPS — `JWT_COOKIE_SECURE=true`.
+Настройки по умолчанию подходят для локального запуска. Чтобы их изменить, скопируйте `.env.example` в `.env` в корне репозитория. Для работы с PostgreSQL заполните в `.env` переменные `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `POSTGRES_HOST`.
+
+### Проверка работоспособности
+
+Пока приложение запущено, выполните в другом терминале из корня репозитория:
+
+```bash
+python3 tests/smoke_test.py http://localhost:8000
+```
+
+Скрипт проходит три шага: (1) главная страница открывается, в каталоге API есть игры; (2) новый пользователь регистрируется; (3) пользователь публикует рецензию, у игры увеличивается число рецензий и пересчитывается средняя оценка. Затем скрипт удаляет рецензию. Код возврата `0` означает, что проект работает, а в конце выводится строка «Проект работает.».
+
+То же самое можно проверить вручную: открыть <http://localhost:8000/>, ввести в поиск «мор» и найти «Мор (Pathologic 2)», зарегистрироваться и оставить рецензию. Средняя оценка игры сразу изменится.
+
+### Протокол проверки запуска
+
+| Дата | ОС и окружение | Способ | Кто проверял | Результат |
+| --- | --- | --- | --- | --- |
+| 19.10.2026 | macOS (Darwin 25.4), Docker Desktop 28.0.4 | Чистый `git clone` ветки `lab-1`, затем `docker compose up --build`, затем `tests/smoke_test.py` | Лазарев Ю. (прогон выполнен с помощью Claude Code) | Успешно: сборка ≈ 36 с, smoke-тест пройден |
+| 19.10.2026 | Debian GNU/Linux 12, чистый контейнер `python:3.13.3-slim` без кэша pip | Чистая копия репозитория, затем команды из раздела «Запуск без Docker», затем `tests/smoke_test.py`, `ruff check .`, `manage.py test` | Лазарев Ю. (прогон выполнен с помощью Claude Code) | Успешно: smoke-тест пройден, 33 теста OK, линтер без замечаний |
 
 ## Импорт игр из RAWG
 
@@ -75,6 +94,7 @@ docker compose exec web python manage.py createsuperuser
 2. Загрузите игры:
 
 ```bash
+cd src
 python manage.py import_rawg --pages 3 --ordering -rating          # 120 популярных игр
 python manage.py import_rawg --search "hollow knight" --details    # с описаниями
 ```
@@ -84,8 +104,8 @@ python manage.py import_rawg --search "hollow knight" --details    # с опис
 ## Тесты и линтер
 
 ```bash
-python manage.py test
-ruff check .
+cd src && python manage.py test     # 33 автотеста
+cd .. && ruff check .               # линтер
 ```
 
 CI (`.github/workflows/ci.yml`) на каждый push и pull request запускает линтер, проверку миграций, тесты на PostgreSQL и сборку Docker-образа. Чек-лист ручной проверки — в [docs/testing.md](docs/testing.md).
@@ -118,24 +138,46 @@ flowchart LR
 Схема компонентов, ER-диаграмма и сценарии — в [docs/architecture.md](docs/architecture.md).
 
 ```text
-config/        настройки Django, корневые URL
-accounts/      пользователь, регистрация, JWT и refresh-cookie
-games/         игры, жанры, платформы, фильтры, клиент RAWG, команды import_rawg и seed_demo
-reviews/       рецензии и права автора
-saved_games/   личный список
-frontend/      шаблон страницы и статика: css/kritik.css, js/app.js, js/api.js, js/ui.js
-docs/          API, архитектура, бэклог, тестирование, процесс
+README.md                описание, запуск, статус требований
+CHANGELOG.md             история изменений
+LICENSE                  лицензия MIT
+docs/00-project.md       паспорт проекта, структура, карта функций, практики, план на семестр
+docs/01-…05-*.md         требования, валидация, архитектура, тестирование, выпуск (ЛР 2–6)
+docs/adr/                архитектурные решения (ЛР 4)
+docs/diagrams/           исходники диаграмм
+docs/api.md, architecture.md, backlog.md, testing.md, process.md   документация, написанная до ЛР 1
+src/manage.py            точка входа Django
+src/config/              настройки Django, корневые URL
+src/accounts/            пользователь, регистрация, JWT и refresh-cookie
+src/games/               игры, жанры, платформы, фильтры, клиент RAWG, команды import_rawg и seed_demo
+src/reviews/             рецензии и права автора
+src/saved_games/         личный список
+src/frontend/            шаблон страницы и статика: css/kritik.css, js/app.js, js/api.js, js/ui.js
+tests/                   smoke-тест (автотесты пока в src/<app>/tests.py, перенос в ЛР 5)
+docker/, Dockerfile, docker-compose.yml, .github/workflows/ci.yml   инфраструктура и CI
 ```
 
+Подробный разбор структуры, точек входа и конфигурации приведён в [docs/00-project.md](docs/00-project.md).
 ## Команда
+
+Работа индивидуальная.
 
 | Участник | Роль | Зона ответственности |
 | --- | --- | --- |
-| _ФИО_ | Team Lead / Backend | архитектура, API, БД, код-ревью |
-| _ФИО_ | Product Manager / Frontend | бэклог, истории, интерфейс, презентация |
-| _ФИО_ | DevOps & QA / Backend | импорт RAWG, тесты, CI, деплой |
+| Лазарев Юрий | Владелец продукта, разработчик, QA | всё: требования, архитектура, код, тесты, выпуск |
 
-Бэклог и пользовательские истории — [docs/backlog.md](docs/backlog.md). Правила работы с Git, шаблоны отчётов и протоколов — [docs/process.md](docs/process.md).
+Бэклог и пользовательские истории описаны в [docs/backlog.md](docs/backlog.md), паспорт проекта и план на семестр в [docs/00-project.md](docs/00-project.md).
+
+## Статус требований
+
+Спецификация требований (UR-n, FR-n, NFR-n) появится в лабораторной работе 2 в файле `docs/01-requirements.md`, после этого здесь будет таблица статусов. До неё функции перечислены в карте функций [docs/00-project.md](docs/00-project.md#4-карта-функций): все функции Ф1–Ф9 реализованы.
+
+## Правила ведения репозитория
+
+- Каждая лабораторная работа делается в ветке `lab-N` и попадает в `main` только через pull request. Прямые коммиты в `main` запрещены защитой ветки. После слияния на итоговый коммит ставится тег `lab-N`.
+- Метки issues: `review`, `bug`, `change-request`, `question`. Замечания преподавателя оформляются как issues и закрываются коммитами со ссылкой `Closes #N`.
+- Начиная с ЛР 2 идентификаторы UR-n, FR-n, NFR-n, CR-n и T-n указываются в коммитах, issues, коде и тестах.
+- Проект собственный, а не форк, поэтому синхронизация с upstream не нужна.
 
 ## Ограничения и планы
 

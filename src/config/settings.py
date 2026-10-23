@@ -5,8 +5,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# BASE_DIR — каталог src/ с кодом, PROJECT_DIR — корень репозитория (там лежит .env).
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
+PROJECT_DIR = BASE_DIR.parent
+load_dotenv(PROJECT_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-local-development-key-do-not-use-in-production")
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
