@@ -107,7 +107,7 @@ JWT: короткоживущий **access**-токен (5 минут) пере�
 Не HTTP-эндпоинт, а команда администратора:
 
 ```bash
-python manage.py import_rawg --pages 3 --ordering -rating --details
+cd src && python manage.py import_rawg --pages 3 --ordering -rating --details
 ```
 
 | Параметр | По умолчанию | Описание |

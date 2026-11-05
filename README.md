@@ -2,7 +2,7 @@
 
 Агрегатор отзывов на видеоигры. Пользователи ищут игры в каталоге, ставят оценки от 1 до 10, пишут короткие рецензии и собирают личный список «сыграть позже». Оценка игры — среднее по рецензиям пользователей сервиса, без оценок изданий и рекламы.
 
-Учебный проект по дисциплине «Проектный практикум», 2026. Тема из задания — «Агрегатор отзывов на видеоигры», нетривиальная часть: сложные фильтры и сортировки, получение данных об играх из внешнего API (RAWG).
+Учебный проект команды из трёх человек по дисциплине «Программная инженерия», 2026. Нетривиальная часть: сложные фильтры и сортировки, получение данных об играх из внешнего API (RAWG).
 
 ![Главная страница](docs/img/catalog-light.png)
 
@@ -35,39 +35,58 @@
 | Инфраструктура | Docker, docker compose, gunicorn, WhiteNoise |
 | Качество | Django TestCase (33 теста), Ruff, GitHub Actions |
 
-## Быстрый старт (локально, SQLite)
+## Запуск
 
-Нужен Python 3.12+.
+### Предварительные требования
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-cp .env.example .env                  # при необходимости поменяйте значения
-python manage.py migrate
-python manage.py seed_demo            # 24 игры и демо-рецензии
-python manage.py createsuperuser      # для входа в /admin/
-python manage.py runserver
-```
+| Инструмент | Версия | Для чего |
+| --- | --- | --- |
+| Git | любая | клонирование |
+| Docker Engine / Docker Desktop с docker compose v2 | 24+ (проверено на 28.0.4) | основной способ запуска. На macOS и Windows Docker Desktop должен быть запущен |
+| Python | 3.13.3 (`.python-version`), подойдёт 3.12+ | только для запуска без Docker и для smoke-теста |
 
-Откройте <http://127.0.0.1:8000/>. Админка: <http://127.0.0.1:8000/admin/>.
+Ключ RAWG не нужен: без него загружается демо-каталог из 24 игр.
 
-Чтобы работать с PostgreSQL вместо SQLite, заполните в `.env` переменные `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`.
-
-## Запуск в Docker (PostgreSQL + gunicorn)
+### Запуск в Docker (PostgreSQL + gunicorn), 3 команды
 
 ```bash
+git clone https://github.com/zrmiles/kritik.git kritik
+cd kritik
 docker compose up --build
 ```
 
-Приложение будет доступно на <http://localhost:8000/>. При старте контейнер применяет миграции и загружает демо-каталог. Если задать `RAWG_API_KEY` и `IMPORT_RAWG_PAGES`, он дополнительно импортирует игры из RAWG:
+При старте контейнер применяет миграции и загружает демо-каталог. Приложение открывается на <http://localhost:8000/>. Если порт 8000 занят, запустите `WEB_PORT=8080 docker compose up --build`. Для входа в админку создайте суперпользователя: `docker compose exec web python manage.py createsuperuser`.
+
+### Запуск без Docker (SQLite), 5 команд
 
 ```bash
-RAWG_API_KEY=ваш_ключ IMPORT_RAWG_PAGES=3 docker compose up --build
-docker compose exec web python manage.py createsuperuser
+git clone https://github.com/zrmiles/kritik.git kritik && cd kritik
+python3 -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cd src && python manage.py migrate && python manage.py seed_demo
+python manage.py runserver
 ```
 
-Для сервера с доменом задайте `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, свой `DJANGO_SECRET_KEY`, а при HTTPS — `JWT_COOKIE_SECURE=true`.
+Настройки по умолчанию подходят для локального запуска. Чтобы их изменить, скопируйте `.env.example` в `.env` в корне репозитория. Для работы с PostgreSQL заполните в `.env` переменные `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `POSTGRES_HOST`.
+
+### Проверка работоспособности
+
+Пока приложение запущено, выполните в другом терминале из корня репозитория:
+
+```bash
+python3 tests/smoke_test.py http://localhost:8000
+```
+
+Скрипт проходит три шага: (1) главная страница открывается, в каталоге API есть игры; (2) новый пользователь регистрируется; (3) пользователь публикует рецензию, у игры увеличивается число рецензий и пересчитывается средняя оценка. Затем скрипт удаляет рецензию. Код возврата `0` означает, что проект работает, а в конце выводится строка «Проект работает.».
+
+То же самое можно проверить вручную: открыть <http://localhost:8000/>, ввести в поиск «мор» и найти «Мор (Pathologic 2)», зарегистрироваться и оставить рецензию. Средняя оценка игры сразу изменится.
+
+### Протокол проверки запуска
+
+| Дата | ОС и окружение | Способ | Кто проверял | Результат |
+| --- | --- | --- | --- | --- |
+| 19.10.2026 | macOS (Darwin 25.4), Docker Desktop 28.0.4 | Чистый `git clone` ветки `lab-1`, затем `docker compose up --build`, затем `tests/smoke_test.py` | Лазарев Ю. (прогон выполнен с помощью Claude Code) | Успешно: сборка ≈ 36 с, smoke-тест пройден |
+| 19.10.2026 | Debian GNU/Linux 12, чистый контейнер `python:3.13.3-slim` без кэша pip | Чистая копия репозитория, затем команды из раздела «Запуск без Docker», затем `tests/smoke_test.py`, `ruff check .`, `manage.py test` | Лазарев Ю. (прогон выполнен с помощью Claude Code) | Успешно: smoke-тест пройден, 33 теста OK, линтер без замечаний |
 
 ## Импорт игр из RAWG
 
@@ -75,6 +94,7 @@ docker compose exec web python manage.py createsuperuser
 2. Загрузите игры:
 
 ```bash
+cd src
 python manage.py import_rawg --pages 3 --ordering -rating          # 120 популярных игр
 python manage.py import_rawg --search "hollow knight" --details    # с описаниями
 ```
@@ -84,8 +104,8 @@ python manage.py import_rawg --search "hollow knight" --details    # с опис
 ## Тесты и линтер
 
 ```bash
-python manage.py test
-ruff check .
+cd src && python manage.py test     # 33 автотеста
+cd .. && ruff check .               # линтер
 ```
 
 CI (`.github/workflows/ci.yml`) на каждый push и pull request запускает линтер, проверку миграций, тесты на PostgreSQL и сборку Docker-образа. Чек-лист ручной проверки — в [docs/testing.md](docs/testing.md).
@@ -118,24 +138,70 @@ flowchart LR
 Схема компонентов, ER-диаграмма и сценарии — в [docs/architecture.md](docs/architecture.md).
 
 ```text
-config/        настройки Django, корневые URL
-accounts/      пользователь, регистрация, JWT и refresh-cookie
-games/         игры, жанры, платформы, фильтры, клиент RAWG, команды import_rawg и seed_demo
-reviews/       рецензии и права автора
-saved_games/   личный список
-frontend/      шаблон страницы и статика: css/kritik.css, js/app.js, js/api.js, js/ui.js
-docs/          API, архитектура, бэклог, тестирование, процесс
+README.md                описание, запуск, статус требований
+CHANGELOG.md             история изменений
+LICENSE                  лицензия MIT
+docs/00-project.md       паспорт проекта, структура, карта функций, практики, план на семестр
+docs/02-…05-*.md         валидация, архитектура, тестирование, выпуск (ЛР 3–6)
+docs/adr/                архитектурные решения (ЛР 4)
+docs/01-requirements.md  требования FR/NFR, сценарии US, модели системы (ЛР 2)
+docs/diagrams/           диаграммы: исходники PlantUML (*.puml) и PNG
+docs/api.md, architecture.md, backlog.md, testing.md, process.md   документация, написанная до ЛР 1
+src/manage.py            точка входа Django
+src/config/              настройки Django, корневые URL
+src/accounts/            пользователь, регистрация, JWT и refresh-cookie
+src/games/               игры, жанры, платформы, фильтры, клиент RAWG, команды import_rawg и seed_demo
+src/reviews/             рецензии и права автора
+src/saved_games/         личный список
+src/frontend/            шаблон страницы и статика: css/kritik.css, js/app.js, js/api.js, js/ui.js
+tests/                   smoke-тест (автотесты пока в src/<app>/tests.py, перенос в ЛР 5)
+docker/, Dockerfile, docker-compose.yml, .github/workflows/ci.yml   инфраструктура и CI
 ```
 
+Подробный разбор структуры, точек входа и конфигурации приведён в [docs/00-project.md](docs/00-project.md).
 ## Команда
+
+Команда из трёх человек.
 
 | Участник | Роль | Зона ответственности |
 | --- | --- | --- |
-| _ФИО_ | Team Lead / Backend | архитектура, API, БД, код-ревью |
-| _ФИО_ | Product Manager / Frontend | бэклог, истории, интерфейс, презентация |
-| _ФИО_ | DevOps & QA / Backend | импорт RAWG, тесты, CI, деплой |
+| Лазарев Юрий | Тимлид, frontend, DevOps | ведение репозитория и ревью, интерфейс, Docker и CI, выпуск и развёртывание |
+| Стругов Максим | Архитектор, backend | архитектура и ADR, API, модель данных и БД |
+| Щербаков Марк | Аналитик, QA | требования и их валидация, тест-план и автотесты, проверка запуска |
 
-Бэклог и пользовательские истории — [docs/backlog.md](docs/backlog.md). Правила работы с Git, шаблоны отчётов и протоколов — [docs/process.md](docs/process.md).
+Требования и сценарии — в [docs/01-requirements.md](docs/01-requirements.md), исходный бэклог (BL-n) — в [docs/backlog.md](docs/backlog.md), паспорт проекта и план на семестр в [docs/00-project.md](docs/00-project.md).
+
+## Статус требований
+
+Спецификация — [docs/01-requirements.md](docs/01-requirements.md) (версия 1.0): требования FR-n и ограничения NFR-n, пользовательские сценарии US-n и модели системы. Таблица обновляется в каждой следующей работе.
+
+| № | Требование | Приоритет | Состояние | Сценарии |
+| --- | --- | --- | --- | --- |
+| FR-1 | Регистрация, вход, выход, сессия до 7 дней | обязательно | ✅ уже есть | US-1, US-2 |
+| FR-2 | Поиск по названию, совместные фильтры, пять сортировок, ссылка на выдачу | обязательно | ✅ уже есть | US-3 |
+| FR-3 | Страница игры: оценка сообщества, гистограмма, рецензии, похожие игры | обязательно | ✅ уже есть | US-4 |
+| FR-4 | Своя рецензия: создать, изменить, удалить с пересчётом оценки | обязательно | ✅ уже есть | US-5, US-6 |
+| FR-5 | Личный список «сыграть позже» | обязательно | ✅ уже есть | US-7 |
+| FR-6 | Публичная страница пользователя с его рецензиями | желательно | 🔧 нужно доработать | US-8 |
+| FR-7 | Рейтинг сообщества и сводка каталога на главной | желательно | ✅ уже есть | US-9 |
+| FR-8 | Импорт игр из RAWG без дубликатов, журнал импорта | обязательно | ✅ уже есть | US-10 |
+| FR-9 | Администрирование каталога и модерация рецензий | обязательно | ✅ уже есть | US-11 |
+| FR-10 | Отметка «Полезно» и сортировка рецензий по полезности | обязательно | 🆕 нужно сделать | US-12, US-13 |
+| NFR-1 | Браузеры Chrome, Firefox, Safari, Edge; ширина 360–1920 px без горизонтальной прокрутки | — | ✅ уже есть | — |
+| NFR-2 | Каталог 1000 игр / 10 000 рецензий: ответ API ≤ 500 мс (p95), главная ≤ 2 с | — | 🔧 нужно доработать ([#4](https://github.com/zrmiles/kritik/issues/4)) | — |
+| NFR-3 | Хэши паролей, refresh-токен в `HttpOnly`-cookie, доступ только владельца, обязательный `SECRET_KEY` без DEBUG | — | 🔧 нужно доработать ([#2](https://github.com/zrmiles/kritik/issues/2)) | — |
+| NFR-4 | Python 3.13, Django 5.2, PostgreSQL 16; запуск тремя командами за ≤ 5 минут без ключа RAWG | — | ✅ уже есть | — |
+| NFR-5 | Сайт работает без RAWG, данные RAWG показываются со ссылкой на источник | — | ✅ уже есть ([#3](https://github.com/zrmiles/kritik/issues/3)) | — |
+
+Итого: 8 из 10 FR и 3 из 5 NFR выполнены.
+
+## Правила ведения репозитория
+
+- Каждая лабораторная работа делается в ветке `lab-N` и попадает в `main` только через pull request. Прямые коммиты в `main` запрещены защитой ветки. После слияния на итоговый коммит ставится тег `lab-N`.
+- Каждый участник коммитит от своего имени. Свою задачу внутри работы участник делает в ветке `lab-N-<кратко>` и вливает её в `lab-N` через pull request, который просматривает другой участник.
+- Метки issues: `review`, `bug`, `change-request`, `question`. Замечания преподавателя оформляются как issues и закрываются коммитами со ссылкой `Closes #N`.
+- Начиная с ЛР 2 идентификаторы FR-n, NFR-n, US-n, а позже CR-n и T-n указываются в коммитах, issues, pull request'ах, коде и тестах. Номера не меняются до конца семестра.
+- Проект собственный, а не форк, поэтому синхронизация с upstream не нужна.
 
 ## Ограничения и планы
 

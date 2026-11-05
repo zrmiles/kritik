@@ -1,0 +1,38 @@
+@startuml context
+!include _style.iuml
+title Диаграмма контекста системы «Критик»
+left to right direction
+
+actor "Гость" as guest
+actor "Пользователь" as user
+actor "Администратор" as admin
+
+rectangle "Система «Критик»" as kritik #F9F6F0 {
+  component "SPA в браузере\n(HTML, CSS, JavaScript)" as spa
+  component "Django + DRF\nREST API /api/*" as api
+  component "Админка Django\n/admin/" as adm
+  component "Команды\nimport_rawg, seed_demo" as cmd
+  database "PostgreSQL 16\n(SQLite локально)" as db
+}
+
+cloud "RAWG API\napi.rawg.io" as rawg #E7EEF6
+cloud "CDN RAWG\nmedia.rawg.io" as cdn #E7EEF6
+
+guest --> spa : ищет игры, читает рецензии,\nрегистрируется (FR-1–FR-3, FR-7)
+user --> spa : пишет рецензии, ведёт список,\nотмечает полезные (FR-4–FR-6, FR-10)
+admin --> adm : правит каталог,\nмодерирует (FR-9)
+admin --> cmd : запускает импорт (FR-8)
+
+spa --> api : JSON по HTTP,\nJWT + refresh-cookie
+api --> db : ORM
+adm --> db : ORM
+cmd --> db : сохраняет игры,\nжурнал импорта
+cmd --> rawg : HTTP GET, ключ RAWG_API_KEY\n(только при импорте, NFR-5)
+spa ..> cdn : загружает обложки
+
+note bottom of rawg
+  Внешняя система.
+  Недоступность не мешает
+  работе сайта (NFR-5)
+end note
+@enduml

@@ -12,3 +12,6 @@ htmlcov/
 .vscode/
 staticfiles/
 .claude/
+
+# Логи локальных запусков
+*.log

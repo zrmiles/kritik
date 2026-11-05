@@ -1,0 +1,42 @@
+@startuml seq-publish-review
+!include _style.iuml
+title US-5. Публикация рецензии (FR-4)
+autonumber
+
+actor "Пользователь\nanna" as U
+participant "SPA\napp.js" as S
+participant "API\n/api/reviews/" as A
+database "БД" as D
+
+U -> S : открывает «Мор (Pathologic 2)»,\nнажимает «Написать рецензию»
+alt не вошёл в аккаунт
+  S --> U : окно входа и регистрации
+  U -> S : логин и пароль
+  S -> A : POST /api/auth/login/
+  A --> S : 200, access-токен + refresh-cookie
+end
+U -> S : оценка 9, текст «Душная, но гениальная…»,\n«Опубликовать»
+S -> S : проверка формы:\nоценка выбрана, текст ≥ 10 символов
+alt оценка не выбрана или текст короче 10 символов
+  S --> U : «Напишите хотя бы 10 символов —\nпара предложений о впечатлениях.»
+  note right of S : запрос на сервер\nне отправляется
+else форма заполнена верно
+  S -> A : POST /api/reviews/\n{game_id: 19, score: 9, text}\nAuthorization: Bearer …
+  A -> A : валидация: 1 ≤ score ≤ 10,\n10 ≤ len(text) ≤ 500
+  A -> D : есть ли рецензия anna на игру 19?
+  alt рецензия уже есть
+    D --> A : да
+    A --> S : 400 {"game_id": ["Вы уже оставили\nрецензию на эту игру."]}
+    S --> U : сообщение под формой
+    note right of D : новая запись не создаётся,\nоценка игры не меняется
+  else рецензии нет
+    D --> A : нет
+    A -> D : INSERT review\n(unique author+game, check 1..10)
+    A --> S : 201 {author: "Анна", score: 9, is_owner: true}
+    S -> A : GET /api/games/19/ и /api/games/19/reviews/
+    A -> D : AVG(score), COUNT(*), распределение 1–10
+    A --> S : average_rating 7.75, review_count 4
+    S --> U : «Рецензия опубликована. Оценка игры пересчитана.»\nоценка 7,8 · 4 рецензии
+  end
+end
+@enduml
