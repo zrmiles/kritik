@@ -1,0 +1,61 @@
+@startuml use-cases
+!include _style.iuml
+title Варианты использования системы «Критик»
+left to right direction
+
+actor "Гость" as guest
+actor "Пользователь" as user
+actor "Администратор" as admin
+actor "RAWG API\n«внешняя система»" as rawg
+
+guest <|-- user
+user <|-- admin
+
+rectangle "Система «Критик»" {
+  package "Доступно всем" {
+    usecase "Зарегистрироваться\n[FR-1]" as UC1
+    usecase "Искать и фильтровать\nкаталог [FR-2]" as UC3
+    usecase "Открыть страницу игры\n[FR-3]" as UC4
+    usecase "Сортировать рецензии\nпо полезности [FR-10]\n«планируется»" as UC11 #FFFFFF;line.dashed
+    usecase "Смотреть рейтинг\nсообщества [FR-7]" as UC5
+    usecase "Открыть страницу\nпользователя [FR-6]" as UC6
+  }
+  package "Пользователь" {
+    usecase "Войти, выйти,\nсохранить сессию [FR-1]" as UC2
+    usecase "Опубликовать рецензию\n[FR-4]" as UC7
+    usecase "Изменить или удалить\nсвою рецензию [FR-4]" as UC8
+    usecase "Вести личный список\n[FR-5]" as UC9
+    usecase "Отметить рецензию\nполезной [FR-10]\n«планируется»" as UC10 #FFFFFF;line.dashed
+  }
+  package "Администратор" {
+    usecase "Импортировать игры\nиз RAWG [FR-8]" as UC12
+    usecase "Смотреть журнал\nимпорта [FR-8]" as UC13
+    usecase "Управлять играми,\nжанрами, платформами [FR-9]" as UC14
+    usecase "Удалить рецензию\n(модерация) [FR-9]" as UC15
+  }
+}
+
+guest --> UC1
+guest --> UC3
+guest --> UC4
+guest --> UC5
+guest --> UC6
+user --> UC2
+user --> UC7
+user --> UC8
+user --> UC9
+user --> UC10
+admin --> UC12
+admin --> UC13
+admin --> UC14
+admin --> UC15
+UC12 --> rawg
+
+UC11 .> UC4 : <<extend>>
+UC7 .> UC2 : <<include>>
+
+note bottom of admin
+  Пользователь может всё, что гость,
+  администратор — всё, что пользователь
+end note
+@enduml
