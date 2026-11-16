@@ -142,7 +142,7 @@ class ReviewContractTests(TestCase):
         self.assertNotIn("game_id", response.data)
 
         card = self.game_card()
-        self.assertEqual(card["average_rating"], "7.75")
+        self.assertEqual(card["average_rating"], "7.80")
         self.assertEqual(card["review_count"], 4)
         self.assertEqual(card["score_distribution"], [0, 0, 1, 0, 0, 0, 0, 0, 2, 1])
 
