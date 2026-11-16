@@ -1,0 +1,76 @@
+# ЛР 4: автоматические проверки pull request в main.
+# Запускается при открытии pull request (opened), при добавлении в него коммитов (synchronize)
+# и при повторном открытии (reopened). Имена заданий test и docker обязательны для слияния в main.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+      - name: Подготовить Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+          cache: pip
+      - name: Установить зависимости
+        run: pip install -r requirements-dev.txt
+      - name: Линтер (ruff)
+        run: ruff check --output-format=github .
+
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kritik
+          POSTGRES_USER: kritik
+          POSTGRES_PASSWORD: kritik
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kritik -d kritik"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-secret-key-that-is-long-enough-for-jwt
+      POSTGRES_DB: kritik
+      POSTGRES_USER: kritik
+      POSTGRES_PASSWORD: kritik
+      POSTGRES_HOST: localhost
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+      - name: Подготовить Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+          cache: pip
+      - name: Установить зависимости
+        run: pip install -r requirements-dev.txt
+      - name: Проверка конфигурации и миграций
+        working-directory: src
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Тесты (PostgreSQL)
+        working-directory: src
+        run: python manage.py test --verbosity 2
+
+  docker:
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+      - name: Сборка образа
+        run: docker build -t kritik:pr .

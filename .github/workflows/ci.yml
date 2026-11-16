@@ -1,9 +1,9 @@
+# Проверка main после слияния. Pull request проверяет pr-checks.yml.
 name: CI
 
 on:
   push:
     branches: [main]
-  pull_request:
 
 jobs:
   test:
