@@ -33,7 +33,7 @@
 | Frontend | HTML, CSS, JavaScript (ES-модули, без сборщика), Fetch API |
 | Внешний API | [RAWG Video Games Database](https://rawg.io/apidocs) |
 | Инфраструктура | Docker, docker compose, gunicorn, WhiteNoise |
-| Качество | Django TestCase (33 теста), Ruff, GitHub Actions |
+| Качество | Django TestCase (34 теста), Ruff, GitHub Actions |
 
 ## Запуск
 
@@ -104,7 +104,7 @@ python manage.py import_rawg --search "hollow knight" --details    # с опис
 ## Тесты и линтер
 
 ```bash
-cd src && python manage.py test     # 33 автотеста
+cd src && python manage.py test     # 34 автотеста
 cd .. && ruff check .               # линтер
 ```
 
@@ -112,7 +112,7 @@ CI (`.github/workflows/ci.yml`) на каждый push и pull request запу�
 
 ## API
 
-Кратко (подробно, с параметрами и примерами ответов — в [docs/api.md](docs/api.md)):
+Кратко (подробно, с параметрами и примерами ответов — в [docs/api.md](docs/api.md)). Полный контракт операции публикации рецензии `POST /api/reviews/` с входными данными, ошибками и примерами вызова — в [docs/interface-contract.md](docs/interface-contract.md) (ЛР 3):
 
 | Метод | Путь | Назначение |
 | --- | --- | --- |
@@ -142,9 +142,10 @@ README.md                описание, запуск, статус требо
 CHANGELOG.md             история изменений
 LICENSE                  лицензия MIT
 docs/00-project.md       паспорт проекта, структура, карта функций, практики, план на семестр
-docs/02-…05-*.md         валидация, архитектура, тестирование, выпуск (ЛР 3–6)
+docs/03-…05-*.md         архитектура, тестирование, выпуск (ЛР 4–6)
 docs/adr/                архитектурные решения (ЛР 4)
 docs/01-requirements.md  требования FR/NFR, сценарии US, модели системы (ЛР 2)
+docs/interface-contract.md   контракт операции POST /api/reviews/ (US-5, FR-4) с примерами (ЛР 3)
 docs/diagrams/           диаграммы: исходники PlantUML (*.puml) и PNG
 docs/api.md, architecture.md, backlog.md, testing.md, process.md   документация, написанная до ЛР 1
 src/manage.py            точка входа Django

@@ -3,7 +3,7 @@
 ## Автотесты
 
 ```bash
-cd src && python manage.py test   # 33 теста: API, права доступа, фильтры, импорт RAWG
+cd src && python manage.py test   # 34 теста: API, права доступа, фильтры, импорт RAWG
 ruff check .                   # линтер
 ```
 
