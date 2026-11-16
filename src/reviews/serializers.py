@@ -1,8 +1,11 @@
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from games.models import Game
 
 from .models import Review
+
+DUPLICATE_REVIEW = "Вы уже оставили рецензию на эту игру."
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -51,13 +54,19 @@ class ReviewSerializer(serializers.ModelSerializer):
 
             request = self.context["request"]
             if Review.objects.filter(author=request.user, game=attrs["game"]).exists():
-                raise serializers.ValidationError({"game_id": "Вы уже оставили рецензию на эту игру."})
+                raise serializers.ValidationError({"game_id": DUPLICATE_REVIEW})
         elif "game" in attrs and attrs["game"] != self.instance.game:
             raise serializers.ValidationError({"game_id": "Игру существующей рецензии изменить нельзя."})
         return attrs
 
     def create(self, validated_data):
-        return Review.objects.create(author=self.context["request"].user, **validated_data)
+        # US-5, FR-4: проверка в validate() не спасает от двух одновременных запросов,
+        # поэтому нарушение уникальности (author, game) в БД тоже отдаётся как 400, а не 500.
+        try:
+            with transaction.atomic():
+                return Review.objects.create(author=self.context["request"].user, **validated_data)
+        except IntegrityError as exc:
+            raise serializers.ValidationError({"game_id": [DUPLICATE_REVIEW]}) from exc
 
 
 class ReviewGameSerializer(serializers.ModelSerializer):

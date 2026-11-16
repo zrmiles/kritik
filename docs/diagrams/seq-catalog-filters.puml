@@ -1,0 +1,34 @@
+@startuml seq-catalog-filters
+!include _style.iuml
+title US-3. Поиск с фильтрами и ошибка параметра (FR-2)
+autonumber
+
+actor "Гость" as G
+participant "SPA\napp.js" as S
+participant "API\nGET /api/games/" as A
+database "БД" as D
+
+G -> S : выбирает «Экшен», «Приключения»,\nPC, «с 2018», «8+»
+S -> S : записывает фильтры в адрес\n~#/?genre=action,adventure&platform=pc\n&year_from=2018&rating_min=8
+S -> A : GET /api/games/?genre=action,adventure\n&platform=pc&year_from=2018&rating_min=8&page=1
+A -> A : проверка параметров
+A -> D : SELECT игры + AVG(score), COUNT(reviews)\nWHERE все фильтры одновременно\nORDER BY оценка DESC
+D --> A : 6 игр
+A --> S : 200 {count: 6, results: […]}
+S --> G : «Найдено: 6 игр»: Return of the Obra Dinn 9,5,\nHades 9,0, Hi-Fi Rush 8,5 …
+
+== Ошибка: некорректный параметр в адресе ==
+
+G -> S : открывает ссылку #/?rating_min=abc
+S -> A : GET /api/games/?rating_min=abc&page=1
+A -> A : Decimal("abc") → ошибка
+A --> S : 400 {"rating_min": "Укажите число от 1 до 10."}
+note right of A : запрос к БД не выполняется,\nсписок игр не возвращается
+S --> G : вместо выдачи: «Укажите число от 1 до 10.»\nи кнопка «Сбросить фильтры»
+G -> S : «Сбросить фильтры»
+S -> A : GET /api/games/?page=1
+A -> D : SELECT игры без фильтров
+D --> A : 24 игры
+A --> S : 200 {count: 24, results: […]}
+S --> G : полный каталог, «Найдено: 24 игры»
+@enduml

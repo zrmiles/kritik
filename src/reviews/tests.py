@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -5,6 +7,7 @@ from rest_framework.test import APIClient
 from games.models import Game
 
 from .models import Review
+from .serializers import ReviewSerializer
 
 User = get_user_model()
 TEXT = "Достаточно длинный текст рецензии."
@@ -56,6 +59,16 @@ class ReviewCrudTests(TestCase):
         response = self.create()
         self.assertEqual(response.status_code, 400)
         self.assertIn("game_id", response.data)
+
+    def test_one_review_per_game_race(self):
+        # US-5: второй одновременный запрос проходит validate() раньше, чем первый сохранён.
+        # Ответ должен быть тем же 400, что и при обычном повторе, а не 500.
+        self.create()
+        with mock.patch.object(ReviewSerializer, "validate", lambda serializer, attrs: attrs):
+            response = self.create(score=3)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"game_id": ["Вы уже оставили рецензию на эту игру."]})
+        self.assertEqual(Review.objects.get().score, 8)
 
     def test_validation(self):
         self.assertEqual(self.create(score=0).status_code, 400)
