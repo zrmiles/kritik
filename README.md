@@ -33,7 +33,7 @@
 | Frontend | HTML, CSS, JavaScript (ES-модули, без сборщика), Fetch API |
 | Внешний API | [RAWG Video Games Database](https://rawg.io/apidocs) |
 | Инфраструктура | Docker, docker compose, gunicorn, WhiteNoise |
-| Качество | Django TestCase (34 теста), Ruff, GitHub Actions |
+| Качество | Django TestCase (38 тестов), Ruff, GitHub Actions |
 
 ## Запуск
 
@@ -103,12 +103,26 @@ python manage.py import_rawg --search "hollow knight" --details    # с опис
 
 ## Тесты и линтер
 
+Нужен Python 3.12+ (в CI — 3.13.3 из `.python-version`). Команды выполняются из корня репозитория:
+
 ```bash
-cd src && python manage.py test     # 34 автотеста
-cd .. && ruff check .               # линтер
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt                   # зависимости приложения + ruff
+ruff check .                                          # линтер
+cd src && python manage.py test                       # все 38 автотестов (SQLite, без Docker и ключа RAWG)
+python manage.py test reviews.tests.ReviewContractTests   # только тесты контракта POST /api/reviews/ (ЛР 4)
 ```
 
-CI (`.github/workflows/ci.yml`) на каждый push и pull request запускает линтер, проверку миграций, тесты на PostgreSQL и сборку Docker-образа. Чек-лист ручной проверки — в [docs/testing.md](docs/testing.md).
+Внешние сервисы в тестах не нужны: RAWG API подменяется заглушкой (`unittest.mock`), база — временная SQLite. Чтобы прогнать тесты на PostgreSQL, как в CI, задайте переменные `POSTGRES_*` (см. «Запуск без Docker»).
+
+**GitHub Actions.**
+
+| Workflow | Когда запускается | Задания |
+| --- | --- | --- |
+| [`.github/workflows/pr-checks.yml`](.github/workflows/pr-checks.yml) | `pull_request` в `main`: открытие (`opened`), новые коммиты (`synchronize`), повторное открытие | `lint` — `ruff check`; `test` — `manage.py check`, проверка миграций, все тесты на PostgreSQL 16; `docker` — сборка образа |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `push` в `main` (после слияния) | те же проверки для итогового состояния `main` |
+
+Слить pull request в `main` можно только после успешных заданий `test` и `docker`. Чек-лист ручной проверки — в [docs/testing.md](docs/testing.md).
 
 ## API
 
@@ -156,7 +170,7 @@ src/reviews/             рецензии и права автора
 src/saved_games/         личный список
 src/frontend/            шаблон страницы и статика: css/kritik.css, js/app.js, js/api.js, js/ui.js
 tests/                   smoke-тест (автотесты пока в src/<app>/tests.py, перенос в ЛР 5)
-docker/, Dockerfile, docker-compose.yml, .github/workflows/ci.yml   инфраструктура и CI
+docker/, Dockerfile, docker-compose.yml, .github/workflows/   инфраструктура и CI (pr-checks.yml, ci.yml)
 ```
 
 Подробный разбор структуры, точек входа и конфигурации приведён в [docs/00-project.md](docs/00-project.md).

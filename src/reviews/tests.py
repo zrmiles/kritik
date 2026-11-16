@@ -11,6 +11,7 @@ from .serializers import ReviewSerializer
 
 User = get_user_model()
 TEXT = "Достаточно длинный текст рецензии."
+EXAMPLE_TEXT = "Душная, но гениальная игра про чуму и выбор."
 
 
 class ReviewCrudTests(TestCase):
@@ -107,3 +108,88 @@ class ReviewCrudTests(TestCase):
         self.create(client=self.client_for(self.other), score=8)
         distribution = APIClient().get(f"/api/games/{self.game.pk}/").data["score_distribution"]
         self.assertEqual(distribution, [0, 0, 0, 0, 0, 0, 0, 2, 0, 0])
+
+
+class ReviewContractTests(TestCase):
+    """ЛР 4: проверка контракта POST /api/reviews/ (docs/interface-contract.md, FR-4, US-5)."""
+
+    def setUp(self):
+        # Состояние из раздела 3 контракта: у игры уже 3 рецензии с оценками 3, 9 и 10, средняя 7.33.
+        self.game = Game.objects.create(slug="pathologic-2", title="Мор (Pathologic 2)")
+        for index, score in enumerate((3, 9, 10)):
+            critic = User.objects.create_user(f"critic{index}", password="x")
+            Review.objects.create(author=critic, game=self.game, score=score, text=TEXT)
+        self.anna = User.objects.create_user("anna", password="x", display_name="Анна")
+        self.client = APIClient()
+        self.client.force_authenticate(self.anna)
+
+    def publish(self, game=None, **data):
+        payload = {"game_id": (game or self.game).pk, "score": 9, "text": EXAMPLE_TEXT, **data}
+        return self.client.post("/api/reviews/", payload, format="json")
+
+    def game_card(self):
+        return APIClient().get(f"/api/games/{self.game.pk}/").data
+
+    def test_contract_example_1_publish_review(self):
+        """Обычный случай: пример 1 контракта — 201, тело рецензии и пересчёт оценки сообщества."""
+        response = self.publish()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["author"], "Анна")
+        self.assertIs(response.data["is_owner"], True)
+        self.assertEqual(response.data["score"], 9)
+        self.assertEqual(response.data["text"], EXAMPLE_TEXT)
+        self.assertNotIn("game_id", response.data)
+
+        card = self.game_card()
+        self.assertEqual(card["average_rating"], "7.75")
+        self.assertEqual(card["review_count"], 4)
+        self.assertEqual(card["score_distribution"], [0, 0, 1, 0, 0, 0, 0, 0, 2, 1])
+
+    def test_contract_example_2_second_review_is_rejected(self):
+        """Ошибка: пример 2 контракта — повторная рецензия даёт 400 и ничего не меняет."""
+        self.publish()
+        response = self.publish(score=8, text="Вторая попытка написать рецензию на Мор.")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"game_id": ["Вы уже оставили рецензию на эту игру."]})
+        card = self.game_card()
+        self.assertEqual(card["average_rating"], "7.75")
+        self.assertEqual(card["review_count"], 4)
+        self.assertEqual(Review.objects.get(author=self.anna).score, 9)
+
+    def test_score_boundaries(self):
+        """Граничные значения оценки: 1 и 10 принимаются, 0 и 11 — нет."""
+        low = Game.objects.create(slug="low", title="Low")
+        high = Game.objects.create(slug="high", title="High")
+        self.assertEqual(self.publish(game=low, score=1).data["score"], 1)
+        self.assertEqual(self.publish(game=high, score=10).data["score"], 10)
+
+        too_low = self.publish(score=0)
+        self.assertEqual(too_low.status_code, 400)
+        self.assertEqual(too_low.data, {"score": ["Убедитесь, что это значение больше либо равно 1."]})
+        too_high = self.publish(score=11)
+        self.assertEqual(too_high.status_code, 400)
+        self.assertEqual(too_high.data, {"score": ["Убедитесь, что это значение меньше либо равно 10."]})
+        self.assertFalse(Review.objects.filter(author=self.anna, game=self.game).exists())
+
+    def test_text_length_boundaries(self):
+        """Граничные значения длины текста: 10 и 500 символов — да, 9 и 501 — нет; пробелы по краям не в счёт."""
+        short_ok = Game.objects.create(slug="short", title="Short")
+        long_ok = Game.objects.create(slug="long", title="Long")
+        self.assertEqual(self.publish(game=short_ok, text="я" * 10).status_code, 201)
+        self.assertEqual(self.publish(game=long_ok, text="я" * 500).status_code, 201)
+
+        self.assertEqual(
+            self.publish(text="я" * 9).data,
+            {"text": ["Убедитесь, что это значение содержит не менее 10 символов (сейчас 9)."]},
+        )
+        self.assertEqual(
+            self.publish(text="я" * 501).data,
+            {"text": ["Убедитесь, что это значение содержит не более 500 символов (сейчас 501)."]},
+        )
+        self.assertEqual(
+            self.publish(text="   ок   ").data,
+            {"text": ["Убедитесь, что это значение содержит не менее 10 символов (сейчас 2)."]},
+        )
+        self.assertEqual(self.game_card()["review_count"], 3)

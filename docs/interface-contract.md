@@ -239,6 +239,12 @@ Content-Type: application/json
 | `test_validation` | `400` при `score` 0 и 11, тексте короче 10 и длиннее 500 символов, несуществующем `game_id`; рецензия не создаётся |
 | `test_one_review_per_game` | Повторная рецензия — `400` с ключом `game_id` (пример 2) |
 | `test_one_review_per_game_race` | Повтор, прошедший проверку одновременно с первым запросом, — тот же `400` и то же тело, первая рецензия не меняется |
+| `ReviewContractTests.test_contract_example_1_publish_review` | Пример 1: `201`, тело ответа (`author`, `is_owner`, `score`, `text`, нет `game_id`), `average_rating` `"7.75"`, `review_count` 4, `score_distribution` |
+| `ReviewContractTests.test_contract_example_2_second_review_is_rejected` | Пример 2: `400` с телом `{"game_id": [...]}`, оценка сообщества и первая рецензия не меняются |
+| `ReviewContractTests.test_score_boundaries` | `score` 1 и 10 принимаются, 0 и 11 — `400` с текстом сообщения из раздела 2.6 |
+| `ReviewContractTests.test_text_length_boundaries` | `text` из 10 и 500 символов принимается, из 9 и 501 — `400`; `"   ок   "` считается как 2 символа |
+
+С ЛР 4 эти тесты автоматически запускаются в GitHub Actions на каждый pull request в `main` (`.github/workflows/pr-checks.yml`).
 
 Примеры из раздела 3 выполнены вручную через `curl` на чистой базе 17.11.2026, ответы совпали с приведёнными.
 

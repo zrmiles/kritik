@@ -91,7 +91,8 @@ requirements.txt, requirements-dev.txt   зависимости с точным�
 pyproject.toml                           настройки Ruff
 Dockerfile, docker-compose.yml           образ приложения и окружение «приложение + PostgreSQL»
 docker/entrypoint.sh                     миграции, демо-каталог, необязательный импорт RAWG при старте контейнера
-.github/workflows/ci.yml                 CI: линтер, проверка миграций, тесты на PostgreSQL, сборка образа
+.github/workflows/pr-checks.yml          проверки pull request в main: линтер, тесты на PostgreSQL, сборка образа
+.github/workflows/ci.yml                 те же проверки после слияния в main
 docs/                                    паспорт проекта, API, архитектура, бэклог, тестирование, процесс
 src/manage.py                            точка входа для команд Django
 src/config/                              настройки (settings.py), корневые URL, WSGI и ASGI
@@ -170,7 +171,7 @@ tests/smoke_test.py                      проверка работоспосо
 
 | Практика | Есть? | Комментарий |
 | --- | --- | --- |
-| Автотесты | Да | 34 теста Django TestCase в `src/<app>/tests.py`: API, права доступа, фильтры, импорт RAWG с подменой HTTP. Запуск: `cd src && python manage.py test`. Тесты пока не вынесены в `tests/` и не имеют идентификаторов T-n |
+| Автотесты | Да | 38 тестов Django TestCase в `src/<app>/tests.py`: API, права доступа, фильтры, импорт RAWG с подменой HTTP. Запуск: `cd src && python manage.py test`. Тесты пока не вынесены в `tests/` и не имеют идентификаторов T-n |
 | Измерение покрытия | Нет | `coverage` не подключён, процент покрытия неизвестен |
 | Smoke-проверка | Да | `tests/smoke_test.py` добавлен в ЛР 1 |
 | Линтер | Да | Ruff (`pyproject.toml`: правила E, F, W, I, B, UP, DJ), сейчас ошибок нет. Для JavaScript и CSS линтера нет |
